@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #__next {
+  height: 100%;
+}
+body {
+  background: #0f172a; /* slate-900 */
+  color: #e6edf3;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* simple chat bubble styling */
+.chat-container { height: calc(100vh - 72px); }
