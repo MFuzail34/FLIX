@@ -9,8 +9,8 @@ Simple Claude-style chat UI powered by an LLM via a serverless API route.
 - Tailwind CSS for styling
 
 ## Quick start
-1. Copy files into a folder `claude-clone`.
-2. Install dependencies:
+1. Copy files into a folder `flix.ai`.
+3. Install dependencies:
 
 ```bash
 npm install
