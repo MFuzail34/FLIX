@@ -1,0 +1,294 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Home, Library, Plus, MessageSquare, X, Menu, LogIn, UserCircle, LogOut } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import { format } from 'date-fns';
+
+export default function Sidebar({ 
+  conversations = [], 
+  currentConversationId, 
+  onNewChat, 
+  isOpen, 
+  onToggle,
+  isMobile 
+}) {
+  const recentConversations = conversations.slice(0, 20);
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const authenticated = await base44.auth.isAuthenticated();
+      setIsAuthenticated(authenticated);
+      if (authenticated) {
+        try {
+          const currentUser = await base44.auth.me();
+          setUser(currentUser);
+        } catch (error) {
+          setIsAuthenticated(false);
+        }
+      }
+    };
+    checkAuth();
+  }, []);
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="p-4 border-b border-stone-100">
+        <Link to={createPageUrl('Home')} className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-400 to-teal-600 
+                         flex items-center justify-center">
+            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" 
+                    stroke="currentColor" strokeWidth="2" fill="none"/>
+            </svg>
+          </div>
+          <span className="font-semibold text-stone-800">Flix.AI</span>
+        </Link>
+      </div>
+
+      {/* New Thread Button */}
+      <div className="p-3">
+        <button
+          onClick={onNewChat}
+          className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl 
+                     border border-stone-200 hover:bg-stone-50 transition-colors
+                     text-sm text-stone-600 hover:text-stone-800"
+        >
+          <Plus className="w-4 h-4" />
+          <span>New Thread</span>
+          <span className="ml-auto text-xs text-stone-400">⌘ I</span>
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="px-3 space-y-1">
+        <Link
+          to={createPageUrl('Home')}
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl 
+                     hover:bg-stone-50 transition-colors text-sm text-stone-600 
+                     hover:text-stone-800"
+        >
+          <Home className="w-4 h-4" />
+          <span>Home</span>
+        </Link>
+        <Link
+          to={createPageUrl('Library')}
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl 
+                     hover:bg-stone-50 transition-colors text-sm text-stone-600 
+                     hover:text-stone-800"
+        >
+          <Library className="w-4 h-4" />
+          <span>Library</span>
+        </Link>
+      </nav>
+
+      {/* Script Writer Section */}
+      <div className="px-3 mt-4 pt-4 border-t border-stone-100">
+        <h3 className="px-4 py-2 text-xs font-medium text-stone-400 uppercase tracking-wider">
+          Create
+        </h3>
+        <nav className="space-y-1">
+          <Link
+            to={createPageUrl('ContentWriter')}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl 
+                       hover:bg-stone-50 transition-colors text-sm text-stone-600 
+                       hover:text-stone-800"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span>Content Writer</span>
+          </Link>
+          <Link
+            to={createPageUrl('ContentLibrary')}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl 
+                       hover:bg-stone-50 transition-colors text-sm text-stone-600 
+                       hover:text-stone-800"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <span>My Content</span>
+          </Link>
+          <Link
+            to={createPageUrl('EmailWriter')}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl 
+                       hover:bg-stone-50 transition-colors text-sm text-stone-600 
+                       hover:text-stone-800"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span>Email Writer</span>
+          </Link>
+          <Link
+            to={createPageUrl('EmailLibrary')}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl 
+                       hover:bg-stone-50 transition-colors text-sm text-stone-600 
+                       hover:text-stone-800"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                    d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+            </svg>
+            <span>My Emails</span>
+          </Link>
+          <Link
+            to={createPageUrl('ScriptWriter')}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl 
+                       hover:bg-stone-50 transition-colors text-sm text-stone-600 
+                       hover:text-stone-800"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                    d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+            </svg>
+            <span>Script Writer</span>
+          </Link>
+          <Link
+            to={createPageUrl('ScriptLibrary')}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl 
+                       hover:bg-stone-50 transition-colors text-sm text-stone-600 
+                       hover:text-stone-800"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <span>My Scripts</span>
+          </Link>
+        </nav>
+      </div>
+
+      {/* Recent Threads */}
+      {recentConversations.length > 0 && (
+        <div className="flex-1 overflow-y-auto mt-4 px-3">
+          <h3 className="px-4 py-2 text-xs font-medium text-stone-400 uppercase tracking-wider">
+            Recent
+          </h3>
+          <div className="space-y-1">
+            {recentConversations.map((conv) => (
+              <Link
+                key={conv.id}
+                to={createPageUrl(`Chat?id=${conv.id}`)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl 
+                           transition-colors text-sm truncate
+                           ${currentConversationId === conv.id 
+                             ? 'bg-teal-50 text-teal-700' 
+                             : 'text-stone-600 hover:bg-stone-50 hover:text-stone-800'}`}
+              >
+                <MessageSquare className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{conv.title}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Auth Section */}
+      <div className="p-3 border-t border-stone-100 mt-auto">
+        {isAuthenticated && user ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-stone-50">
+              <UserCircle className="w-5 h-5 text-stone-600" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-stone-800 truncate">
+                  {user.full_name || user.email}
+                </p>
+                <p className="text-xs text-stone-500 truncate">{user.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => base44.auth.logout()}
+              className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl 
+                        hover:bg-stone-50 transition-colors text-sm text-stone-600 
+                        hover:text-stone-800"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <button
+              onClick={() => base44.auth.redirectToLogin()}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 
+                        rounded-xl border border-stone-200 hover:bg-stone-50 
+                        transition-colors text-sm text-stone-600 hover:text-stone-800"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Sign In</span>
+            </button>
+            <button
+              onClick={() => base44.auth.redirectToLogin()}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 
+                        rounded-xl bg-teal-600 hover:bg-teal-700 transition-colors 
+                        text-sm text-white font-medium"
+            >
+              <span>Sign Up</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Mobile overlay
+  if (isMobile) {
+    return (
+      <>
+        <button
+          onClick={onToggle}
+          className="fixed top-4 left-4 z-40 p-2 bg-white rounded-lg shadow-md 
+                     border border-stone-100 md:hidden"
+        >
+          <Menu className="w-5 h-5 text-stone-600" />
+        </button>
+        
+        <AnimatePresence>
+          {isOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/20 z-40 md:hidden"
+                onClick={onToggle}
+              />
+              <motion.aside
+                initial={{ x: -280 }}
+                animate={{ x: 0 }}
+                exit={{ x: -280 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="fixed left-0 top-0 bottom-0 w-[280px] bg-[#FAFAF8] 
+                          border-r border-stone-100 z-50 md:hidden"
+              >
+                <button
+                  onClick={onToggle}
+                  className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-stone-100"
+                >
+                  <X className="w-5 h-5 text-stone-500" />
+                </button>
+                {sidebarContent}
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
+
+  // Desktop sidebar
+  return (
+    <aside className="hidden md:flex flex-col w-[260px] bg-[#FAFAF8] border-r border-stone-100 h-screen fixed left-0 top-0">
+      {sidebarContent}
+    </aside>
+  );
+}

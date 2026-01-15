@@ -1,0 +1,168 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Sparkles, Wand2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+
+const genres = [
+  { value: 'drama', label: 'Drama' },
+  { value: 'comedy', label: 'Comedy' },
+  { value: 'action', label: 'Action' },
+  { value: 'thriller', label: 'Thriller' },
+  { value: 'horror', label: 'Horror' },
+  { value: 'romance', label: 'Romance' },
+  { value: 'sci-fi', label: 'Sci-Fi' },
+  { value: 'fantasy', label: 'Fantasy' },
+  { value: 'documentary', label: 'Documentary' },
+  { value: 'other', label: 'Other' },
+];
+
+const formats = [
+  { value: 'short_film', label: 'Short Film' },
+  { value: 'feature_film', label: 'Feature Film' },
+  { value: 'tv_episode', label: 'TV Episode' },
+  { value: 'web_series', label: 'Web Series' },
+  { value: 'commercial', label: 'Commercial' },
+  { value: 'youtube_video', label: 'YouTube Video' },
+];
+
+export default function ScriptForm({ onGenerate, isGenerating }) {
+  const [formData, setFormData] = useState({
+    title: '',
+    genre: 'drama',
+    format: 'short_film',
+    duration: '5 minutes',
+    prompt: '',
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (formData.prompt.trim()) {
+      onGenerate(formData);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-full max-w-3xl mx-auto"
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Main Prompt */}
+        <div className="space-y-2">
+          <Label htmlFor="prompt" className="text-stone-700 font-medium">
+            What's your script about?
+          </Label>
+          <Textarea
+            id="prompt"
+            placeholder="Describe your story idea, characters, setting, plot, or any specific details you want in the script..."
+            value={formData.prompt}
+            onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
+            className="min-h-[120px] bg-white border-stone-200 rounded-xl resize-none"
+            disabled={isGenerating}
+          />
+        </div>
+
+        {/* Script Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-stone-700 font-medium">
+              Script Title (Optional)
+            </Label>
+            <Input
+              id="title"
+              placeholder="My Amazing Script"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="bg-white border-stone-200 rounded-xl"
+              disabled={isGenerating}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="duration" className="text-stone-700 font-medium">
+              Duration
+            </Label>
+            <Input
+              id="duration"
+              placeholder="e.g., 5 minutes, 30 minutes"
+              value={formData.duration}
+              onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+              className="bg-white border-stone-200 rounded-xl"
+              disabled={isGenerating}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="genre" className="text-stone-700 font-medium">
+              Genre
+            </Label>
+            <Select
+              value={formData.genre}
+              onValueChange={(value) => setFormData({ ...formData, genre: value })}
+              disabled={isGenerating}
+            >
+              <SelectTrigger className="bg-white border-stone-200 rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {genres.map((genre) => (
+                  <SelectItem key={genre.value} value={genre.value}>
+                    {genre.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="format" className="text-stone-700 font-medium">
+              Format
+            </Label>
+            <Select
+              value={formData.format}
+              onValueChange={(value) => setFormData({ ...formData, format: value })}
+              disabled={isGenerating}
+            >
+              <SelectTrigger className="bg-white border-stone-200 rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {formats.map((format) => (
+                  <SelectItem key={format.value} value={format.value}>
+                    {format.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Generate Button */}
+        <Button
+          type="submit"
+          disabled={!formData.prompt.trim() || isGenerating}
+          className="w-full h-12 bg-teal-600 hover:bg-teal-700 text-white rounded-xl 
+                     text-base font-medium transition-all duration-200 shadow-sm 
+                     hover:shadow-md disabled:opacity-50"
+        >
+          {isGenerating ? (
+            <>
+              <Wand2 className="w-5 h-5 mr-2 animate-pulse" />
+              Generating Script...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5 mr-2" />
+              Generate Script
+            </>
+          )}
+        </Button>
+      </form>
+    </motion.div>
+  );
+}

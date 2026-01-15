@@ -1,0 +1,60 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Globe, FileText, Sparkles } from 'lucide-react';
+
+const stages = [
+  { icon: Globe, text: "Searching the web..." },
+  { icon: FileText, text: "Reading sources..." },
+  { icon: Sparkles, text: "Generating answer..." }
+];
+
+export default function SearchingAnimation() {
+  const [currentStage, setCurrentStage] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentStage((prev) => (prev + 1) % stages.length);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const CurrentIcon = stages[currentStage].icon;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex items-center gap-3 py-6"
+    >
+      <div className="relative">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="w-10 h-10 rounded-full border-2 border-teal-100 border-t-teal-500"
+        />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStage}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="absolute inset-0 flex items-center justify-center"
+          >
+            <CurrentIcon className="w-4 h-4 text-teal-600" />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={currentStage}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 10 }}
+          className="text-sm text-stone-500 font-medium"
+        >
+          {stages[currentStage].text}
+        </motion.span>
+      </AnimatePresence>
+    </motion.div>
+  );
+}

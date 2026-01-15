@@ -1,0 +1,172 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { PenTool } from 'lucide-react';
+import Sidebar from '@/components/layout/Sidebar';
+import ContentForm from '@/components/content/ContentForm';
+import ContentDisplay from '@/components/content/ContentDisplay';
+import { toast } from 'sonner';
+
+export default function ContentWriter() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState(null);
+
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => base44.entities.Conversation.list('-created_date', 20),
+  });
+
+  const wordCountMap = {
+    short: 100,
+    medium: 300,
+    long: 600,
+    detailed: 1000
+  };
+
+  const handleGenerate = async (formData) => {
+    setIsGenerating(true);
+    setGeneratedContent(null);
+
+    try {
+      const response = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are a professional content writer. Generate high-quality content based on the following:
+
+Title/Topic: ${formData.title || 'No title'}
+Content Type: ${formData.type}
+Platform: ${formData.platform}
+Tone: ${formData.tone}
+Target Length: ~${wordCountMap[formData.wordCount]} words
+
+Details: ${formData.prompt}
+
+Write engaging, well-structured content that:
+- Is optimized for the specified platform
+- Matches the requested tone
+- Includes appropriate formatting (headings, bullet points if needed)
+- Is compelling and valuable to the reader
+- Uses markdown formatting where appropriate
+
+Provide the complete content.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            title: {
+              type: "string",
+              description: "A refined, engaging title"
+            },
+            content: {
+              type: "string",
+              description: "The complete content in markdown format"
+            }
+          }
+        }
+      });
+
+      const content = {
+        title: formData.title || response.title,
+        type: formData.type,
+        platform: formData.platform,
+        tone: formData.tone,
+        prompt: formData.prompt,
+        content: response.content,
+        wordCount: response.content.split(/\s+/).filter(Boolean).length
+      };
+
+      setGeneratedContent(content);
+      toast.success('Content generated successfully!');
+    } catch (error) {
+      toast.error('Failed to generate content. Please try again.');
+      console.error('Content generation error:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async (content) => {
+    setIsSaving(true);
+    try {
+      await base44.entities.Content.create(content);
+      toast.success('Content saved to library!');
+      queryClient.invalidateQueries(['contents']);
+    } catch (error) {
+      toast.error('Failed to save content');
+      console.error('Save error:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleNewContent = () => {
+    setGeneratedContent(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <Sidebar 
+        conversations={conversations}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        isMobile={true}
+      />
+      <Sidebar 
+        conversations={conversations}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={true}
+        isMobile={false}
+      />
+
+      <main className="md:ml-[260px] min-h-screen">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-10"
+          >
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
+                          bg-gradient-to-br from-teal-400 to-teal-600 mb-4">
+              <PenTool className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-semibold text-stone-800 mb-3">
+              AI Content Writer
+            </h1>
+            <p className="text-stone-500 max-w-2xl mx-auto">
+              Create compelling content for any platform. Blog posts, social media, 
+              articles, and more - powered by AI.
+            </p>
+          </motion.div>
+
+          {/* Content */}
+          {!generatedContent ? (
+            <ContentForm onGenerate={handleGenerate} isGenerating={isGenerating} />
+          ) : (
+            <div>
+              <div className="flex justify-center mb-6">
+                <button
+                  onClick={handleNewContent}
+                  className="px-4 py-2 text-sm text-teal-600 hover:text-teal-700 
+                           font-medium transition-colors"
+                >
+                  ← Create New Content
+                </button>
+              </div>
+              <ContentDisplay 
+                content={generatedContent} 
+                onSave={handleSave}
+                isSaving={isSaving}
+              />
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

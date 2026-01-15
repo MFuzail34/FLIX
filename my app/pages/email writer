@@ -1,0 +1,164 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { Mail } from 'lucide-react';
+import Sidebar from '@/components/layout/Sidebar';
+import EmailForm from '@/components/email/EmailForm';
+import EmailDisplay from '@/components/email/EmailDisplay';
+import { toast } from 'sonner';
+
+export default function EmailWriter() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [generatedEmail, setGeneratedEmail] = useState(null);
+
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => base44.entities.Conversation.list('-created_date', 20),
+  });
+
+  const handleGenerate = async (formData) => {
+    setIsGenerating(true);
+    setGeneratedEmail(null);
+
+    try {
+      const response = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are a professional email writer. Generate a well-crafted email based on the following:
+
+Subject: ${formData.subject || 'No subject'}
+Recipient: ${formData.recipient || 'General'}
+Tone: ${formData.tone}
+Purpose: ${formData.purpose}
+Length: ${formData.length}
+
+Details: ${formData.prompt}
+
+Write a complete, professional email with:
+- Appropriate greeting
+- Clear, well-structured body
+- Professional closing
+- Proper formatting
+
+Make it natural and appropriate for the specified tone and purpose.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            subject: {
+              type: "string",
+              description: "A refined subject line"
+            },
+            content: {
+              type: "string",
+              description: "The complete email content with greeting, body, and closing"
+            }
+          }
+        }
+      });
+
+      const email = {
+        subject: formData.subject || response.subject,
+        recipient: formData.recipient,
+        tone: formData.tone,
+        purpose: formData.purpose,
+        length: formData.length,
+        prompt: formData.prompt,
+        content: response.content
+      };
+
+      setGeneratedEmail(email);
+      toast.success('Email generated successfully!');
+    } catch (error) {
+      toast.error('Failed to generate email. Please try again.');
+      console.error('Email generation error:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async (email) => {
+    setIsSaving(true);
+    try {
+      await base44.entities.Email.create(email);
+      toast.success('Email saved to library!');
+      queryClient.invalidateQueries(['emails']);
+    } catch (error) {
+      toast.error('Failed to save email');
+      console.error('Save error:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleNewEmail = () => {
+    setGeneratedEmail(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <Sidebar 
+        conversations={conversations}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        isMobile={true}
+      />
+      <Sidebar 
+        conversations={conversations}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={true}
+        isMobile={false}
+      />
+
+      <main className="md:ml-[260px] min-h-screen">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-10"
+          >
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
+                          bg-gradient-to-br from-teal-400 to-teal-600 mb-4">
+              <Mail className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-semibold text-stone-800 mb-3">
+              AI Email Writer
+            </h1>
+            <p className="text-stone-500 max-w-2xl mx-auto">
+              Craft professional emails in seconds. Describe what you need, 
+              and let AI write the perfect message for you.
+            </p>
+          </motion.div>
+
+          {/* Content */}
+          {!generatedEmail ? (
+            <EmailForm onGenerate={handleGenerate} isGenerating={isGenerating} />
+          ) : (
+            <div>
+              <div className="flex justify-center mb-6">
+                <button
+                  onClick={handleNewEmail}
+                  className="px-4 py-2 text-sm text-teal-600 hover:text-teal-700 
+                           font-medium transition-colors"
+                >
+                  ← Create New Email
+                </button>
+              </div>
+              <EmailDisplay 
+                email={generatedEmail} 
+                onSave={handleSave}
+                isSaving={isSaving}
+              />
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

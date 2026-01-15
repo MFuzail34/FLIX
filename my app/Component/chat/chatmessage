@@ -1,0 +1,112 @@
+import React from 'react';
+import { motion } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import SourceCard from './SourceCard';
+import FollowUpSuggestions from './FollowUpSuggestions';
+
+export default function ChatMessage({ message, isLast, onFollowUp }) {
+  const isUser = message.role === 'user';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`py-6 ${!isUser ? 'pb-8' : ''}`}
+    >
+      {isUser ? (
+        <div className="flex items-start gap-4">
+          <div className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-sm font-medium">Y</span>
+          </div>
+          <div className="flex-1 pt-1">
+            <p className="text-lg text-stone-800 font-medium">{message.content}</p>
+            {message.files && message.files.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {message.files.map((file, index) => (
+                  <div key={index} className="flex items-center gap-2 px-3 py-1.5 bg-stone-100 rounded-lg text-sm">
+                    {file.type?.startsWith('image/') ? (
+                      <img src={file.url} alt={file.name} className="w-16 h-16 object-cover rounded" />
+                    ) : (
+                      <span className="text-stone-600">{file.name}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-start gap-4">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 
+                         flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" 
+                    stroke="currentColor" strokeWidth="2" fill="none"/>
+            </svg>
+          </div>
+          <div className="flex-1 pt-1 min-w-0">
+            <div className="prose prose-stone prose-sm max-w-none">
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => (
+                    <p className="text-stone-700 leading-relaxed mb-4 last:mb-0">{children}</p>
+                  ),
+                  h1: ({ children }) => (
+                    <h1 className="text-lg font-semibold text-stone-800 mt-6 mb-3">{children}</h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="text-base font-semibold text-stone-800 mt-5 mb-2">{children}</h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-sm font-semibold text-stone-800 mt-4 mb-2">{children}</h3>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="space-y-2 my-4 ml-4">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="space-y-2 my-4 ml-4 list-decimal">{children}</ol>
+                  ),
+                  li: ({ children }) => (
+                    <li className="text-stone-700 leading-relaxed pl-1">{children}</li>
+                  ),
+                  strong: ({ children }) => (
+                    <strong className="font-semibold text-stone-800">{children}</strong>
+                  ),
+                  a: ({ href, children }) => (
+                    <a href={href} target="_blank" rel="noopener noreferrer" 
+                       className="text-teal-600 hover:text-teal-700 underline underline-offset-2">
+                      {children}
+                    </a>
+                  ),
+                  code: ({ children }) => (
+                    <code className="px-1.5 py-0.5 bg-stone-100 rounded text-sm font-mono text-stone-700">
+                      {children}
+                    </code>
+                  ),
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-2 border-stone-200 pl-4 my-4 text-stone-600 italic">
+                      {children}
+                    </blockquote>
+                  ),
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+
+            {message.sources && message.sources.length > 0 && (
+              <SourceCard sources={message.sources} />
+            )}
+
+            {isLast && message.followUps && message.followUps.length > 0 && (
+              <FollowUpSuggestions 
+                suggestions={message.followUps} 
+                onSelect={onFollowUp}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}

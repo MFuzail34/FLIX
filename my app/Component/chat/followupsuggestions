@@ -1,0 +1,41 @@
+import React from 'react';
+import { motion } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
+
+export default function FollowUpSuggestions({ suggestions, onSelect }) {
+  if (!suggestions || suggestions.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="mt-6 pt-6 border-t border-stone-100"
+    >
+      <h4 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
+        Related
+      </h4>
+      <div className="space-y-2">
+        {suggestions.map((suggestion, index) => (
+          <motion.button
+            key={index}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 + index * 0.1 }}
+            onClick={() => onSelect(suggestion)}
+            className="group w-full flex items-center justify-between px-4 py-3 
+                       bg-stone-50 hover:bg-teal-50 rounded-xl border border-stone-100 
+                       hover:border-teal-200 transition-all duration-200 text-left"
+          >
+            <span className="text-sm text-stone-700 group-hover:text-teal-800">
+              {suggestion}
+            </span>
+            <ArrowRight className="w-4 h-4 text-stone-400 group-hover:text-teal-600 
+                                  opacity-0 group-hover:opacity-100 transition-all 
+                                  transform group-hover:translate-x-1" />
+          </motion.button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}

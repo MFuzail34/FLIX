@@ -1,0 +1,66 @@
+{
+  "name": "Content",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the content"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "blog_post",
+        "social_media",
+        "article",
+        "product_description",
+        "ad_copy",
+        "newsletter",
+        "press_release",
+        "other"
+      ],
+      "description": "Type of content"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "website",
+        "linkedin",
+        "twitter",
+        "instagram",
+        "facebook",
+        "youtube",
+        "medium",
+        "other"
+      ],
+      "description": "Target platform"
+    },
+    "tone": {
+      "type": "string",
+      "enum": [
+        "professional",
+        "casual",
+        "inspirational",
+        "humorous",
+        "informative",
+        "persuasive"
+      ],
+      "description": "Tone of the content"
+    },
+    "prompt": {
+      "type": "string",
+      "description": "The original prompt used to generate the content"
+    },
+    "content": {
+      "type": "string",
+      "description": "The generated content"
+    },
+    "wordCount": {
+      "type": "integer",
+      "description": "Approximate word count"
+    }
+  },
+  "required": [
+    "title",
+    "content"
+  ]
+}

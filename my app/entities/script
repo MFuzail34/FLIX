@@ -1,0 +1,65 @@
+{
+  "name": "Script",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the script"
+    },
+    "genre": {
+      "type": "string",
+      "enum": [
+        "drama",
+        "comedy",
+        "action",
+        "thriller",
+        "horror",
+        "romance",
+        "sci-fi",
+        "fantasy",
+        "documentary",
+        "other"
+      ],
+      "description": "Genre of the script"
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "short_film",
+        "feature_film",
+        "tv_episode",
+        "web_series",
+        "commercial",
+        "youtube_video"
+      ],
+      "description": "Format of the script"
+    },
+    "duration": {
+      "type": "string",
+      "description": "Estimated duration (e.g., '5 minutes', '30 minutes', '2 hours')"
+    },
+    "prompt": {
+      "type": "string",
+      "description": "The original prompt used to generate the script"
+    },
+    "content": {
+      "type": "string",
+      "description": "The generated script content"
+    },
+    "characters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of main characters"
+    },
+    "scenes": {
+      "type": "integer",
+      "description": "Number of scenes"
+    }
+  },
+  "required": [
+    "title",
+    "content"
+  ]
+}

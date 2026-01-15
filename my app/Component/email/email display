@@ -1,0 +1,114 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Copy, Download, Save, Edit2, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
+
+export default function EmailDisplay({ email, onSave, isSaving }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(email.content);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(editedContent);
+    toast.success('Email copied to clipboard');
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([editedContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${email.subject || 'email'}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Email downloaded');
+  };
+
+  const handleSave = () => {
+    onSave({ ...email, content: editedContent });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-stone-200 p-8"
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between mb-6 pb-6 border-b border-stone-100">
+        <div className="flex-1">
+          <h2 className="text-2xl font-semibold text-stone-800 mb-3">
+            {email.subject}
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            <span className="px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-xs font-medium">
+              {email.tone}
+            </span>
+            <span className="px-3 py-1 bg-stone-100 text-stone-600 rounded-full text-xs">
+              {email.purpose}
+            </span>
+            {email.recipient && (
+              <span className="px-3 py-1 bg-stone-100 text-stone-600 rounded-full text-xs">
+                To: {email.recipient}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 ml-4">
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className="p-2 text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+            title={isEditing ? 'Done editing' : 'Edit email'}
+          >
+            {isEditing ? <Check className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
+          </button>
+          <button
+            onClick={handleCopy}
+            className="p-2 text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+            title="Copy to clipboard"
+          >
+            <Copy className="w-5 h-5" />
+          </button>
+          <button
+            onClick={handleDownload}
+            className="p-2 text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+            title="Download as text"
+          >
+            <Download className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {isEditing ? (
+        <Textarea
+          value={editedContent}
+          onChange={(e) => setEditedContent(e.target.value)}
+          className="w-full min-h-[400px] font-mono text-sm"
+        />
+      ) : (
+        <div className="prose prose-stone max-w-none">
+          <pre className="whitespace-pre-wrap font-sans text-stone-700 leading-relaxed">
+            {editedContent}
+          </pre>
+        </div>
+      )}
+
+      {/* Save Button */}
+      <div className="mt-6 pt-6 border-t border-stone-100">
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="w-full py-3 bg-teal-600 text-white rounded-xl font-medium
+                   hover:bg-teal-700 transition-colors disabled:bg-stone-200 
+                   disabled:text-stone-400 flex items-center justify-center gap-2"
+        >
+          <Save className="w-5 h-5" />
+          {isSaving ? 'Saving...' : 'Save to Library'}
+        </button>
+      </div>
+    </motion.div>
+  );
+}

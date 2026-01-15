@@ -1,0 +1,335 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Brain } from 'lucide-react';
+import SearchBox from '@/components/search/SearchBox';
+import ChatMessage from '@/components/chat/ChatMessage';
+import SearchingAnimation from '@/components/search/SearchingAnimation';
+import Sidebar from '@/components/layout/Sidebar';
+import MemoryPanel from '@/components/chat/MemoryPanel';
+import { toast } from 'sonner';
+
+export default function Chat() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const messagesEndRef = useRef(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const conversationId = urlParams.get('id');
+  const initialQuery = urlParams.get('q');
+
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => base44.entities.Conversation.list('-created_date', 20),
+  });
+
+  const { data: conversation } = useQuery({
+    queryKey: ['conversation', conversationId],
+    queryFn: () => base44.entities.Conversation.filter({ id: conversationId }),
+    enabled: !!conversationId,
+  });
+
+  const { data: memories = [] } = useQuery({
+    queryKey: ['memories'],
+    queryFn: () => base44.entities.Memory.list('-created_date', 100),
+  });
+
+  // Load existing messages
+  useEffect(() => {
+    if (conversation && conversation[0]?.messages) {
+      setMessages(conversation[0].messages);
+    }
+  }, [conversation]);
+
+  // Handle initial query
+  useEffect(() => {
+    if (initialQuery && conversationId && messages.length === 0) {
+      // Check for uploaded files in sessionStorage
+      const storedFiles = sessionStorage.getItem('uploadedFiles');
+      const files = storedFiles ? JSON.parse(storedFiles) : [];
+      sessionStorage.removeItem('uploadedFiles');
+      
+      handleSearch(initialQuery, files);
+      // Clear the query param to prevent re-triggering
+      window.history.replaceState({}, '', createPageUrl(`Chat?id=${conversationId}`));
+    }
+  }, [initialQuery, conversationId]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isSearching]);
+
+  const handleSearch = async (query, files = []) => {
+    // Add user message immediately
+    const userMessage = {
+      role: 'user',
+      content: query,
+      files: files,
+      timestamp: new Date().toISOString()
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    setIsSearching(true);
+
+    try {
+      // Fetch user memories
+      const memories = await base44.entities.Memory.list('-created_date', 50);
+      
+      // Build memory context
+      let memoryContext = '';
+      if (memories.length > 0) {
+        memoryContext = '\n\nPrevious context about the user:\n';
+        memories.forEach(mem => {
+          memoryContext += `- ${mem.key}: ${mem.value}\n`;
+        });
+      }
+
+      // Build conversation history
+      let conversationHistory = '';
+      if (messages.length > 0) {
+        conversationHistory = '\n\nConversation history:\n';
+        messages.slice(-6).forEach(msg => {
+          conversationHistory += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+        });
+      }
+
+      // Build prompt with memory and context
+      let promptText = `You are an AI search assistant with memory capabilities. The user asked: "${query}"`;
+      if (files.length > 0) {
+        promptText += `\n\nThe user has attached ${files.length} file(s). Analyze the content of these files and incorporate them into your answer.`;
+      }
+      
+      promptText += memoryContext;
+      promptText += conversationHistory;
+      
+      promptText += `
+
+Rules:
+- Use the conversation history and memory context to provide more personalized responses
+- Always use provided search results
+- Be concise and factual
+- Structure answers clearly with headings and bullet points when appropriate
+- Do not speculate
+- Avoid opinions and emojis
+- If information is unclear, say so
+- Keep responses focused and not too long
+- If you learn something new about the user (name, preferences, important facts), include it in the memories_to_save field
+
+Provide a clear, well-structured answer.`;
+
+      // Call LLM with web search and files
+      const response = await base44.integrations.Core.InvokeLLM({
+        prompt: promptText,
+        add_context_from_internet: true,
+        file_urls: files.length > 0 ? files.map(f => f.url) : undefined,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            answer: {
+              type: "string",
+              description: "The main answer in markdown format"
+            },
+            sources: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  url: { type: "string" }
+                }
+              },
+              description: "List of sources used"
+            },
+            followUpQuestions: {
+              type: "array",
+              items: { type: "string" },
+              description: "3-5 relevant follow-up questions the user might want to ask"
+            },
+            memories_to_save: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  key: { type: "string" },
+                  value: { type: "string" }
+                }
+              },
+              description: "Important information learned about the user to remember"
+            }
+          }
+        }
+      });
+
+      // Save new memories
+      if (response.memories_to_save && response.memories_to_save.length > 0) {
+        for (const memory of response.memories_to_save) {
+          // Check if memory already exists
+          const existing = memories.find(m => m.key === memory.key);
+          if (existing) {
+            await base44.entities.Memory.update(existing.id, {
+              value: memory.value,
+              conversationId: conversationId
+            });
+          } else {
+            await base44.entities.Memory.create({
+              key: memory.key,
+              value: memory.value,
+              conversationId: conversationId
+            });
+          }
+        }
+      }
+
+      const assistantMessage = {
+        role: 'assistant',
+        content: response.answer,
+        sources: response.sources || [],
+        followUps: response.followUpQuestions || [],
+        timestamp: new Date().toISOString()
+      };
+
+      const newMessages = [...messages, userMessage, assistantMessage];
+      setMessages(newMessages);
+      setIsSearching(false);
+
+      // Save to database
+      if (conversationId) {
+        await base44.entities.Conversation.update(conversationId, {
+          messages: newMessages
+        });
+        queryClient.invalidateQueries(['conversation', conversationId]);
+        queryClient.invalidateQueries(['conversations']);
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      setIsSearching(false);
+    }
+  };
+
+  const handleNewChat = () => {
+    navigate(createPageUrl('Home'));
+  };
+
+  const handleDeleteMemory = async (memoryId) => {
+    await base44.entities.Memory.delete(memoryId);
+    queryClient.invalidateQueries(['memories']);
+    toast.success('Memory deleted');
+  };
+
+  const handleClearAllMemories = async () => {
+    for (const memory of memories) {
+      await base44.entities.Memory.delete(memory.id);
+    }
+    queryClient.invalidateQueries(['memories']);
+    toast.success('All memories cleared');
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <Sidebar 
+        conversations={conversations}
+        currentConversationId={conversationId}
+        onNewChat={handleNewChat}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        isMobile={true}
+      />
+      <Sidebar 
+        conversations={conversations}
+        currentConversationId={conversationId}
+        onNewChat={handleNewChat}
+        isOpen={true}
+        isMobile={false}
+      />
+
+      <main className="md:ml-[260px] min-h-screen flex flex-col">
+        {/* Memory Button */}
+        <div className="sticky top-0 z-10 bg-[#FAFAF8] border-b border-stone-100 px-4 py-3 flex justify-end">
+          <button
+            onClick={() => setMemoryPanelOpen(!memoryPanelOpen)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-stone-600 
+                     hover:bg-white hover:text-teal-600 rounded-lg border border-stone-200 
+                     transition-colors"
+          >
+            <Brain className="w-4 h-4" />
+            <span>Memory</span>
+            {memories.length > 0 && (
+              <span className="px-1.5 py-0.5 bg-teal-100 text-teal-700 rounded text-xs font-medium">
+                {memories.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-4 py-6">
+            <AnimatePresence>
+              {messages.map((message, index) => (
+                <ChatMessage 
+                  key={index}
+                  message={message}
+                  isLast={index === messages.length - 1 && !isSearching}
+                  onFollowUp={handleSearch}
+                />
+              ))}
+            </AnimatePresence>
+
+            {isSearching && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-start gap-4"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 
+                               flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" 
+                          stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                </div>
+                <SearchingAnimation />
+              </motion.div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Bottom Search Bar */}
+        <div className="sticky bottom-0 bg-gradient-to-t from-[#FAFAF8] via-[#FAFAF8] to-transparent pt-8 pb-6">
+          <div className="max-w-3xl mx-auto px-4">
+            <SearchBox 
+              onSearch={handleSearch}
+              placeholder="Ask a follow-up..."
+              compact={true}
+            />
+          </div>
+        </div>
+        </main>
+
+        {/* Memory Panel */}
+        <AnimatePresence>
+        {memoryPanelOpen && (
+          <MemoryPanel 
+            memories={memories}
+            onDelete={handleDeleteMemory}
+            onClearAll={handleClearAllMemories}
+            onClose={() => setMemoryPanelOpen(false)}
+          />
+        )}
+        </AnimatePresence>
+        </div>
+        );
+        }

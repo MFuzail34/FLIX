@@ -1,0 +1,87 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { base44 } from '@/api/base44Client';
+import { motion } from 'framer-motion';
+import SearchBox from '@/components/search/SearchBox';
+import SuggestionChips from '@/components/home/SuggestionChips';
+import Sidebar from '@/components/layout/Sidebar';
+import { useQuery } from '@tanstack/react-query';
+
+export default function Home() {
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => base44.entities.Conversation.list('-created_date', 20),
+  });
+
+  const handleSearch = async (query, files = []) => {
+    // Create new conversation and navigate to chat
+    const conversation = await base44.entities.Conversation.create({
+      title: query.slice(0, 50) + (query.length > 50 ? '...' : ''),
+      messages: []
+    });
+    
+    const params = new URLSearchParams({
+      id: conversation.id,
+      q: query
+    });
+    
+    // Store files in sessionStorage to pass to Chat page
+    if (files.length > 0) {
+      sessionStorage.setItem('uploadedFiles', JSON.stringify(files));
+    }
+    
+    navigate(createPageUrl(`Chat?${params.toString()}`));
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <Sidebar 
+        conversations={conversations}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        isMobile={true}
+      />
+      <Sidebar 
+        conversations={conversations}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={true}
+        isMobile={false}
+      />
+
+      <main className="md:ml-[260px] min-h-screen flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-2xl mx-auto -mt-20">
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-10"
+          >
+            <h1 className="text-4xl md:text-5xl font-light text-stone-700 tracking-tight">
+              Where knowledge begins
+            </h1>
+          </motion.div>
+
+          <SearchBox 
+            onSearch={handleSearch} 
+            autoFocus={true}
+          />
+
+          <SuggestionChips onSelect={handleSearch} />
+        </div>
+
+        {/* Footer */}
+        <div className="absolute bottom-6 flex items-center gap-6 text-sm text-stone-400">
+          <span className="hover:text-stone-600 cursor-pointer transition-colors">Pro</span>
+          <span className="hover:text-stone-600 cursor-pointer transition-colors">About</span>
+          <span className="hover:text-stone-600 cursor-pointer transition-colors">Blog</span>
+          <span className="text-stone-300">•</span>
+          <span className="font-mono">Made by &lt;/&gt;</span>
+        </div>
+      </main>
+    </div>
+  );
+}

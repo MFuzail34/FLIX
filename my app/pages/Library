@@ -1,0 +1,172 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { format } from 'date-fns';
+import { MessageSquare, Trash2, Search } from 'lucide-react';
+import Sidebar from '@/components/layout/Sidebar';
+import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+export default function Library() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [deleteId, setDeleteId] = useState(null);
+
+  const { data: conversations = [], isLoading } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => base44.entities.Conversation.list('-created_date', 100),
+  });
+
+  const filteredConversations = conversations.filter(conv => 
+    conv.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleDelete = async () => {
+    if (deleteId) {
+      await base44.entities.Conversation.delete(deleteId);
+      queryClient.invalidateQueries(['conversations']);
+      setDeleteId(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <Sidebar 
+        conversations={conversations.slice(0, 20)}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        isMobile={true}
+      />
+      <Sidebar 
+        conversations={conversations.slice(0, 20)}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={true}
+        isMobile={false}
+      />
+
+      <main className="md:ml-[260px] min-h-screen">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h1 className="text-2xl font-semibold text-stone-800 mb-2">Library</h1>
+            <p className="text-stone-500 mb-6">Your conversation history</p>
+
+            {/* Search */}
+            <div className="relative mb-8">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+              <Input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-11 bg-white border-stone-200 rounded-xl h-12"
+              />
+            </div>
+
+            {/* Conversations List */}
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 bg-stone-100 rounded-xl animate-pulse" />
+                ))}
+              </div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="text-center py-16">
+                <MessageSquare className="w-12 h-12 text-stone-300 mx-auto mb-4" />
+                <p className="text-stone-500">
+                  {searchQuery ? 'No conversations found' : 'No conversations yet'}
+                </p>
+                <button
+                  onClick={() => navigate(createPageUrl('Home'))}
+                  className="mt-4 text-teal-600 hover:text-teal-700 text-sm font-medium"
+                >
+                  Start your first search
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredConversations.map((conv, index) => (
+                  <motion.div
+                    key={conv.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="group"
+                  >
+                    <Link
+                      to={createPageUrl(`Chat?id=${conv.id}`)}
+                      className="flex items-start justify-between p-4 bg-white rounded-xl 
+                                border border-stone-100 hover:border-stone-200 
+                                hover:shadow-sm transition-all duration-200"
+                    >
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-lg bg-stone-100 flex items-center 
+                                      justify-center flex-shrink-0">
+                          <MessageSquare className="w-5 h-5 text-stone-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-medium text-stone-800 truncate pr-4">
+                            {conv.title}
+                          </h3>
+                          <p className="text-sm text-stone-500 mt-1">
+                            {conv.messages?.length || 0} messages · {' '}
+                            {format(new Date(conv.created_date), 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setDeleteId(conv.id);
+                        }}
+                        className="p-2 rounded-lg hover:bg-stone-100 text-stone-400 
+                                 hover:text-red-500 opacity-0 group-hover:opacity-100 
+                                 transition-all duration-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      </main>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this conversation and all its messages.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

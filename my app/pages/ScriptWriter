@@ -1,0 +1,178 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { Film } from 'lucide-react';
+import Sidebar from '@/components/layout/Sidebar';
+import ScriptForm from '@/components/script/ScriptForm';
+import ScriptDisplay from '@/components/script/ScriptDisplay';
+import { toast } from 'sonner';
+
+export default function ScriptWriter() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [generatedScript, setGeneratedScript] = useState(null);
+
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => base44.entities.Conversation.list('-created_date', 20),
+  });
+
+  const handleGenerate = async (formData) => {
+    setIsGenerating(true);
+    setGeneratedScript(null);
+
+    try {
+      const response = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are a professional screenwriter. Generate a detailed, well-structured script based on the following:
+
+Story/Prompt: ${formData.prompt}
+Genre: ${formData.genre}
+Format: ${formData.format}
+Duration: ${formData.duration}
+${formData.title ? `Title: ${formData.title}` : ''}
+
+Create a complete script with:
+- Proper screenplay formatting (Scene headings, action lines, character names, dialogue)
+- Clear scene descriptions
+- Natural, engaging dialogue
+- Character development
+- Proper pacing for the specified duration
+- Professional formatting
+
+Format the script in standard screenplay format.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            title: {
+              type: "string",
+              description: "A compelling title for the script"
+            },
+            content: {
+              type: "string",
+              description: "The complete script in proper screenplay format"
+            },
+            characters: {
+              type: "array",
+              items: { type: "string" },
+              description: "List of main character names"
+            },
+            scenes: {
+              type: "integer",
+              description: "Number of scenes in the script"
+            },
+            summary: {
+              type: "string",
+              description: "A brief one-line summary of the script"
+            }
+          }
+        }
+      });
+
+      const script = {
+        title: formData.title || response.title,
+        genre: formData.genre,
+        format: formData.format,
+        duration: formData.duration,
+        prompt: formData.prompt,
+        content: response.content,
+        characters: response.characters || [],
+        scenes: response.scenes || 0,
+      };
+
+      setGeneratedScript(script);
+      toast.success('Script generated successfully!');
+    } catch (error) {
+      toast.error('Failed to generate script. Please try again.');
+      console.error('Script generation error:', error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async (script) => {
+    setIsSaving(true);
+    try {
+      await base44.entities.Script.create(script);
+      toast.success('Script saved to library!');
+      queryClient.invalidateQueries(['scripts']);
+    } catch (error) {
+      toast.error('Failed to save script');
+      console.error('Save error:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleNewScript = () => {
+    setGeneratedScript(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAFAF8]">
+      <Sidebar 
+        conversations={conversations}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        isMobile={true}
+      />
+      <Sidebar 
+        conversations={conversations}
+        onNewChat={() => navigate(createPageUrl('Home'))}
+        isOpen={true}
+        isMobile={false}
+      />
+
+      <main className="md:ml-[260px] min-h-screen">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-10"
+          >
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl 
+                          bg-gradient-to-br from-teal-400 to-teal-600 mb-4">
+              <Film className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-semibold text-stone-800 mb-3">
+              AI Script Writer
+            </h1>
+            <p className="text-stone-500 max-w-2xl mx-auto">
+              Transform your ideas into professional scripts. Describe your story, 
+              and let AI craft a complete screenplay for you.
+            </p>
+          </motion.div>
+
+          {/* Content */}
+          {!generatedScript ? (
+            <ScriptForm onGenerate={handleGenerate} isGenerating={isGenerating} />
+          ) : (
+            <div>
+              <div className="flex justify-center mb-6">
+                <button
+                  onClick={handleNewScript}
+                  className="px-4 py-2 text-sm text-teal-600 hover:text-teal-700 
+                           font-medium transition-colors"
+                >
+                  ← Create New Script
+                </button>
+              </div>
+              <ScriptDisplay 
+                script={generatedScript} 
+                onSave={handleSave}
+                isSaving={isSaving}
+              />
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

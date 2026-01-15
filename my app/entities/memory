@@ -1,0 +1,26 @@
+{
+  "name": "Memory",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "A unique key for the memory (e.g., 'user_name', 'user_preferences')"
+    },
+    "value": {
+      "type": "string",
+      "description": "The value stored in memory"
+    },
+    "context": {
+      "type": "string",
+      "description": "Additional context about when/how this was learned"
+    },
+    "conversationId": {
+      "type": "string",
+      "description": "The conversation where this was learned"
+    }
+  },
+  "required": [
+    "key",
+    "value"
+  ]
+}

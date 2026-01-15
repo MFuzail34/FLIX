@@ -1,0 +1,61 @@
+{
+  "name": "Email",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "string",
+      "description": "Email subject line"
+    },
+    "recipient": {
+      "type": "string",
+      "description": "Recipient name or description"
+    },
+    "tone": {
+      "type": "string",
+      "enum": [
+        "professional",
+        "friendly",
+        "formal",
+        "casual",
+        "persuasive",
+        "apologetic"
+      ],
+      "description": "Tone of the email"
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "business",
+        "networking",
+        "follow_up",
+        "introduction",
+        "request",
+        "thank_you",
+        "announcement",
+        "other"
+      ],
+      "description": "Purpose of the email"
+    },
+    "prompt": {
+      "type": "string",
+      "description": "The original prompt used to generate the email"
+    },
+    "content": {
+      "type": "string",
+      "description": "The generated email content"
+    },
+    "length": {
+      "type": "string",
+      "enum": [
+        "short",
+        "medium",
+        "long"
+      ],
+      "description": "Desired length of the email"
+    }
+  },
+  "required": [
+    "subject",
+    "content"
+  ]
+}
